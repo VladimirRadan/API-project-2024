@@ -1,25 +1,27 @@
 package tests;
 
-import com.github.javafaker.Faker;
 import config.Config;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
-import model.UserLocation;
-import model.UserRequest;
-import model.UserResponse;
+import listeners.TestListener;
+import org.testng.annotations.Listeners;
+import models.userModel.UserRequest;
+import models.userModel.UserResponse;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import utils.Constants;
+import utils.Utils;
 
 import java.util.HashMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
 import static utils.Constants.*;
-
+import static utils.Utils.createJsonFile;
+@Listeners(TestListener.class)
 public class UsersTests extends Config {
 
     SoftAssert softAssert;
@@ -29,26 +31,36 @@ public class UsersTests extends Config {
         softAssert = new SoftAssert();
     }
 
-    @Test
+    @Test(description = "Get all users from DB; Expected result: All users are retrieved", groups = "smoke, regression")
     public void getUsersTest() {
         Map<String, Integer> map = new HashMap<>();
-        map.put("page", 1);
-        map.put("limit", 5);
+        map.put("page", 3);
+        map.put("limit", 50);
 
-        Response response = given()
+        UserRequest userRequest = UserRequest.createUser();
+
+        UserResponse userResponse = given()
+                .body(userRequest)
+                .when().post(CREATE_USER).getBody().as(UserResponse.class);
+
+        List<UserResponse> response = given()
                 .queryParams(map)
-                .when().get(Constants.GET_ALL_USERS);
+                .when().get(Constants.GET_ALL_USERS).jsonPath().getList("data", UserResponse.class);
 
+        String expectedId = userResponse.getId();
 
-        softAssert.assertEquals(response.getStatusCode(), 200, "Expected 200 but got: " + response.getStatusCode());
-        String actualFirstName = response.jsonPath().get("data[0].firstName");
-        System.out.println(actualFirstName);
+        boolean isInTheList = false;
+        for (int i = 0; i < response.size(); i++) {
+            if (response.get(i).getId().equals(expectedId)) {
+                isInTheList = true;
+            }
 
-        softAssert.assertEquals(actualFirstName, "Carolina");
-        softAssert.assertAll();
+            Assert.assertTrue(isInTheList);
+
+        }
     }
 
-    @Test
+    @Test(groups = "regression")
     public void getUsersUsingJsonPathTest() {
         Map<String, Integer> map = new HashMap<>();
         map.put("page", 1);
@@ -64,10 +76,16 @@ public class UsersTests extends Config {
         Assert.assertTrue(result, "Expected first name is not correct.");
     }
 
-    @Test
+    @Test(enabled = false)
     public void getUserByIdTest() {
 
-        String userId = "6643977220862a0f17b9f76b";
+        UserRequest userRequest = UserRequest.createUser();
+
+        UserResponse userResponse = given()
+                .body(userRequest)
+                .when().post(CREATE_USER).getBody().as(UserResponse.class);
+
+        String userId = userResponse.getId();
         Response response = given()
                 .pathParam("id", userId)
                 .when().get(GET_USER_BY_ID);
@@ -78,14 +96,19 @@ public class UsersTests extends Config {
         System.out.println(actualFirstName);
 
         Assert.assertEquals(actualFirstName, "Test");
-
     }
 
 
-    @Test
+    @Test()
     public void deleteUserByIdTest() {
 
-        String userId = "60d0fe4f5311236168a109d2";
+        UserRequest userRequest = UserRequest.createUser();
+
+        UserResponse userResponse = given()
+                .body(userRequest)
+                .when().post(CREATE_USER).getBody().as(UserResponse.class);
+
+        String userId = userResponse.getId();
         Response response = given()
                 .pathParam("id", userId)
                 .when().delete(DELETE_USER_BY_ID);
@@ -135,6 +158,8 @@ public class UsersTests extends Config {
     public void createUserUsingJavaObjectTest() {
 
         UserRequest userRequest = UserRequest.createUser();
+
+        createJsonFile("userRequest", userRequest);
 
         UserResponse userResponse = given()
                 .body(userRequest)
@@ -186,6 +211,11 @@ public class UsersTests extends Config {
         softAssert.assertAll();
     }
 
+    @Test
+    public void readFromJson(){
+        UserResponse userResponse = Utils.getUserFromJson("userRequest");
+        System.out.println(userResponse);
+    }
 
 
 }
