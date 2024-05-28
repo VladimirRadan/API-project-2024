@@ -25,24 +25,4 @@ public class UserRequest {
     @JsonProperty("location")
     private UserLocation userLocation;
 
-
-    public static UserRequest createUser(){
-        Faker faker = new Faker(new Locale("en-US"));
-
-        UserLocation location = UserLocation.builder()
-                .city(faker.address().city())
-                .state(faker.address().state())
-                .street(faker.address().streetAddress())
-                .country(faker.address().country())
-                .build();
-
-        return UserRequest.builder()
-                .email(faker.internet().emailAddress())
-                .phone(faker.phoneNumber().phoneNumber())
-                .first_name(faker.name().firstName())
-                .lastName(faker.name().lastName())
-                .userLocation(location)
-                .build();
-    }
-
 }

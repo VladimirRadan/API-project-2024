@@ -3,6 +3,7 @@ package tests;
 import config.Config;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
+import listeners.RetryAnalyzer;
 import listeners.TestListener;
 import org.testng.annotations.Listeners;
 import models.userModel.UserRequest;
@@ -11,6 +12,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
+import service.user.UserService;
 import utils.Constants;
 import utils.Utils;
 
@@ -19,22 +21,26 @@ import java.util.List;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
+import static service.user.UserService.createUserTemplate;
 import static utils.Constants.*;
 import static utils.Utils.createJsonFile;
 @Listeners(TestListener.class)
 public class UsersTests extends Config {
 
     SoftAssert softAssert;
+    UserService userService;
 
     @BeforeMethod(alwaysRun = true)
     public void setup(){
         softAssert = new SoftAssert();
+        userService = new UserService();
     }
 
-    @Test(description = "Get all users from DB; Expected result: All users are retrieved", groups = "smoke, regression")
+    @Test(description = "Get all users from DB; Expected result: All users are retrieved", groups = "smoke, regression",
+    retryAnalyzer = RetryAnalyzer.class)
     public void getUsersTest() {
         Map<String, Integer> map = new HashMap<>();
-        map.put("page", 3);
+        map.put("page", 0);
         map.put("limit", 50);
 
         UserRequest userRequest = UserRequest.createUser();
@@ -157,18 +163,16 @@ public class UsersTests extends Config {
     @Test
     public void createUserUsingJavaObjectTest() {
 
-        UserRequest userRequest = UserRequest.createUser();
+        UserRequest userTemplate = createUserTemplate();
 
-        createJsonFile("userRequest", userRequest);
+        //createJsonFile("userRequest", userRequest);
 
-        UserResponse userResponse = given()
-                .body(userRequest)
-                .when().post(CREATE_USER).getBody().as(UserResponse.class);
+        UserResponse userResponse = userService.createUser(userTemplate);
 
-        softAssert.assertEquals(userResponse.getEmail(), userRequest.getEmail());
-        softAssert.assertEquals(userResponse.getFirstName(), userRequest.getFirst_name());
-        softAssert.assertEquals(userResponse.getLastName(), userRequest.getLastName());
-        softAssert.assertEquals(userResponse.getLocation().getStreet(), userRequest.getUserLocation().getStreet());
+        softAssert.assertEquals(userResponse.getEmail(), userTemplate.getEmail());
+        softAssert.assertEquals(userResponse.getFirstName(), userTemplate.getFirst_name());
+        softAssert.assertEquals(userResponse.getLastName(), userTemplate.getLastName());
+        softAssert.assertEquals(userResponse.getLocation().getStreet(), userTemplate.getUserLocation().getStreet());
         softAssert.assertAll();
 
     }
@@ -176,7 +180,7 @@ public class UsersTests extends Config {
     @Test
     public void updateUserTest() {
 
-        UserRequest user = UserRequest.createUser();
+        UserRequest user = createUser();
 
         UserResponse userResponse = given()
                 .body(user)
